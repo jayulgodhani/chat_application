@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Chat test</title>
+    <style>
+        h1,
+        h2,
+        h3 {
+            padding: 0 0 5px 0;
+            margin: 0;
+        }
+
+        #me .me {
+            border-bottom: 1px solid #bbb3b3;
+            padding: 10px 0;
+            margin: 5px 0 15px 0;
+        }
+
+        #me .me img {
+            width: 40px;
+            border-radius: 50%;
+            float: left;
+            padding-right: 10px;
+        }
+
+        .user-list {
+            width: 145px;
+            border-right: 0px solid #8a7e7e;
+            float: left;
+        }
+
+        .user-list ul {
+            padding: 0;
+            margin: 0;
+        }
+
+        .user-list ul li {
+            padding: 5px 0;
+            cursor: pointer;
+            color: blue;
+            list-style-type: none;
+            padding: 10px 0;
+        }
+
+        .chat-window {
+            width: 230px;
+            height: 330px;
+            border: 1px solid #ccc;
+            display: inline-block;
+            padding: 5px;
+            position: relative;
+        }
+
+        .chat-window .head {
+            height: 20px;
+            padding: 5px;
+            background: #ddd;
+            margin-bottom: 10px;
+        }
+
+        .chat-window .body {
+            height: calc(100% - 20px)
+        }
+
+        .chat-window .body .chat-text {
+            margin-bottom: 10px;
+        }
+
+        .chat-window .body .chat-text.me {
+            text-align: right;
+        }
+
+        .chat-window .body .chat-text.me .userPhoto {
+            float: right;
+        }
+
+        .chat-window .body .chat-text .userPhoto {
+            width: 30px;
+            float: left;
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chat-window .body .chat-text .userPhoto img {
+            max-width: 100%;
+        }
+
+        .chat-window .footer {
+            position: absolute;
+            bottom: 5px;
+            width: calc(100% - 10px);
+        }
+
+        .chat-window .footer button {
+            width: 60px;
+            height: 25px;
+        }
+
+        .chat-window .footer input {
+            width: calc(100% - 70px);
+            height: 20px;
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.2.0/socket.io.js"></script>
+</head>
+
+<body>
+    <div class="login" id="login">
+        <input id="login_name" placeholder="Username">
+        <button onClick="login()">Login</button>
+    </div>
+    <div id="after-login" style="display:none">
+        <h1 id="me"></h1>
+        <div id="user-list" class="user-list"></div>
+    </div>
+    <script>
+        const socket = io({ transports: ['websocket'] });
+    </script>
+    <script>
+        const login = () => {
+            let username = $('#login_name').val();
+            let password = 'admin';
+            $.ajax({
+                type: "POST",
+                url: "http://localhost:8090/login",
+                data: JSON.stringify({ "userId": username }),
+                success: function (resp) {
+                    if (resp.status) {
+                        $('#login').hide();
+                        $('#after-login').show();
+                        sessionStorage.setItem("user", JSON.stringify(resp.data));
+                        $('#me').html(`
+                        <div class="me">
+                            ${resp.data.user_full_name}
+                         </div>
+                         `);
+                        socket.emit('loggedin', resp.data);
+                    }
+                },
+                dataType: "json",
+                contentType: "application/json"
+            });
+        }
+
+        const sendMyMessage = (chatWidowId, fromUser, message) => {
+            let loggedInUser = JSON.parse(sessionStorage.getItem('user'))
+            let meClass = loggedInUser.user_id == fromUser.user_id ? 'me' : '';
+
+            $('#after-login').find(`#${chatWidowId} .body`).append(`
+        <div class="chat-text ${meClass}">
+            <div>
+                <span class="message">${message}<span>
+            </div>
+        </div>
+    `);
+        }
+
+        const sendMessage = (room) => {
+            let loggedInUser = JSON.parse(sessionStorage.getItem('user'))
+            let message = $('#' + room).find('.messageText').val();
+            $('#' + room).find('.messageText').val('');
+            socket.emit('message', { room: room, message: message, from: loggedInUser });
+            sendMyMessage(room, loggedInUser, message)
+        }
+        const openChatWindow = (room) => {
+            if ($(`#${room}`).length === 0) {
+                $('#after-login').append(`
+        <div class="chat-window" id="${room}">
+            <div class="body"></div>
+            <div class="footer">
+                <input type="text" class="messageText"/><button onclick="sendMessage('${room}')">GO</button>
+            </div>
+        </div>
+        `)
+            }
+        }
+        const createRoom = (id) => {
+            let loggedInUser = JSON.parse(sessionStorage.getItem('user'));
+            let room = Date.now() + Math.random();
+            room = room.toString().replace(".", "_");
+            socket.emit('create', { room: room, userId: loggedInUser.userId, withUserId: id });
+            openChatWindow(room);
+        }
+        socket.on('updateUserList', function (userList) {
+            let loggedInUser = JSON.parse(sessionStorage.getItem('user'));
+            $('#user-list').html('<ul></ul>');
+            userList.forEach(item => {
+                if (loggedInUser.user_id != item.user_id) {
+                    $('#user-list ul').append(`<li data-id="${item.user_id}" onclick="createRoom('${item.user_id}')">${item.user_full_name}</li>`)
+                }
+            });
+
+        });
+
+        socket.on('invite', function (data) {
+            socket.emit("joinRoom", data)
+        });
+        socket.on('message', function (msg) {
+            //If chat window not opened with this roomId, open it
+            if (!$('#after-login').find(`#${msg.room}`).length) {
+                openChatWindow(msg.room)
+            }
+            sendMyMessage(msg.room, msg.from, msg.message)
+        });
+    </script>
+</body>
