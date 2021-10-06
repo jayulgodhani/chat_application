@@ -6,7 +6,7 @@ let connectedUsers = [];
 let clientSocketIds = [];
 
 function connect(server, sessionMiddleware) {
-    terminalLogger('socket started');
+    terminalLogger('Socket Started');
     io = require('socket.io')(server);
     io.on('connection', socket => {
         terminalLogger('conected')

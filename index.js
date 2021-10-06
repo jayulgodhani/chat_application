@@ -56,7 +56,7 @@ app.get('/info', function (req, res) {
 
 /* Server */
 let httpsocket = http.createServer(app).listen(config.SERVER_PORT, function () {
-    console.log('server started')
+    console.log('Server Started');
 });
 
 /* Socket */
