@@ -62,12 +62,12 @@ let httpsocket = http.createServer(app).listen(config.SERVER_PORT, function () {
 /* Socket */
 let realtime = require('./app/socket/socket');
 var session = require('express-session');
-var sessionMiddleware = session({
+/*var sessionMiddleware = session({
     secret: 'qwertyuiop',
     resave: false,
     saveUninitialized: true,
     cookie: { secure: true }
-});
+});*/
 realtime.connect(httpsocket);
 
 /* controller mapping */

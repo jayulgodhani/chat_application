@@ -43,6 +43,7 @@ const getUserListService = async (data) => {
 }
 
 const addMessageService = async (data) => {
+    data.createdAt = new Date();
     let response = await addMessageDao(data);
     if (response && response.errorCode) {
         return { 'statusCode': constant.STATUS_CODE.DB_ORM_ERROR, 'statusMessage': response }
