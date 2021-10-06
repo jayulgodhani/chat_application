@@ -11,28 +11,11 @@ const createChannelDao = async (channelObject) => {
     });
 }
 
-const getBuyerListDao = async (data) => {
+const getUserListDao = async (data) => {
     return channel.findAll({
         raw: true,
-        where: {
-            sellerId: data.userId
-        },
-        attributes: [dbInstance.fn('DISTINCT', dbInstance.col('buyer_id'))],
-    }).then(data => {
-        return data;
-    }).catch(async (error) => {
-        const response = { errorCode: 'Error: while fetching data from database' }
-        return response;
-    });
-}
-
-const getSellerListDao = async (data) => {
-    return channel.findAll({
-        raw: true,
-        where: {
-            buyerId: data.userId
-        },
-        attributes: [dbInstance.fn('DISTINCT', dbInstance.col('seller_id'))],
+        where: { [Op.or]: [{ buyerId: data.userId }, { sellerId: data.userId }] },
+        order: [['updatedAt', 'DESC']]
     }).then(data => {
         return data;
     }).catch(async (error) => {
@@ -53,9 +36,7 @@ const addMessageDao = async (messageObject) => {
 const loadChannelDataDao = async (data) => {
     return channel.findOne({
         raw: true,
-        where: {
-            channelId: data.channelId
-        },
+        where: { channelId: data.channelId },
     }).then(data => {
         return data;
     }).catch(async (error) => {
@@ -67,12 +48,8 @@ const loadChannelDataDao = async (data) => {
 const loadMessageDataDao = async (data) => {
     return message.findAll({
         raw: true,
-        where: {
-            channelId: data.channelId
-        },
-        order: [
-            ['createdAt', 'DESC']
-        ],
+        where: { channelId: data.channelId },
+        order: [['createdAt', 'DESC']],
     }).then(data => {
         return data;
     }).catch(async (error) => {
@@ -100,8 +77,7 @@ const validateCreateChannelDao = async (data) => {
 module.exports = {
     validateCreateChannelDao,
     createChannelDao,
-    getBuyerListDao,
-    getSellerListDao,
+    getUserListDao,
     addMessageDao,
     loadChannelDataDao,
     loadMessageDataDao

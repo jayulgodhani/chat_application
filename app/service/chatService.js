@@ -1,5 +1,5 @@
 const constant = require('../util/constant');
-const { validateCreateChannelDao, createChannelDao, getBuyerListDao, getSellerListDao,
+const { validateCreateChannelDao, createChannelDao, getUserListDao,
     addMessageDao, loadChannelDataDao, loadMessageDataDao, } = require('../dao/chatDao');
 
 const createChannelService = async (data) => {
@@ -22,28 +22,24 @@ const createChannelService = async (data) => {
 }
 
 const getUserListService = async (data) => {
-    let buyerList = await getBuyerListDao(data);
-    if (buyerList && buyerList.errorCode) {
-        return { 'statusCode': constant.STATUS_CODE.DB_ORM_ERROR, 'statusMessage': buyerList }
+    const userId = data.userId;
+    let userList = await getUserListDao(data);
+    if (userList && userList.errorCode) {
+        return { 'statusCode': constant.STATUS_CODE.DB_ORM_ERROR, 'statusMessage': userList }
     }
-
-    let sellerList = await getSellerListDao(data);
-    if (sellerList && sellerList.errorCode) {
-        return { 'statusCode': constant.STATUS_CODE.DB_ORM_ERROR, 'statusMessage': sellerList }
-    }
-
-    let response = [];
-    if(buyerList){
-        for(let buyer of buyerList){
-            response.push(buyer.buyer_id);
+    if (userList) {
+        let connectedUser = [];
+        for (let user of userList) {
+            if (user.buyerId == userId) {
+                connectedUser.push(user.sellerId);
+            }
+            if (user.sellerId == userId) {
+                connectedUser.push(user.buyerId);
+            }
         }
+        return { 'statusCode': constant.STATUS_CODE.NOT_FOUND, 'statusMessage': connectedUser };
     }
-    if(sellerList){
-        for(let seller of sellerList){
-            response.push(seller.seller_id);
-        }
-    }    
-    return { 'statusCode': constant.STATUS_CODE.NOT_FOUND, 'statusMessage': response };
+    return { 'statusCode': constant.STATUS_CODE.NOT_FOUND, 'statusMessage': userList };
 }
 
 const addMessageService = async (data) => {
